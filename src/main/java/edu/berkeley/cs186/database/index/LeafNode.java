@@ -12,6 +12,8 @@ import edu.berkeley.cs186.database.memory.BufferManager;
 import edu.berkeley.cs186.database.memory.Page;
 import edu.berkeley.cs186.database.table.RecordId;
 
+import javax.xml.crypto.Data;
+
 /**
  * A leaf of a B+ tree. Every leaf in a B+ tree of order d stores between d and
  * 2d (key, record id) pairs and a pointer to its right sibling (i.e. the page
@@ -376,8 +378,31 @@ class LeafNode extends BPlusNode {
         // Note: LeafNode has two constructors. To implement fromBytes be sure to
         // use the constructor that reuses an existing page instead of fetching a
         // brand new one.
+        Page page = bufferManager.fetchPage(treeContext, pageNum);
+        Buffer buf = page.getBuffer();
 
-        return null;
+        assert(buf.get() == 1);
+        long rightSibling = buf.getLong();
+        Optional<Long> rightSiblingID = Optional.of(rightSibling);
+        if(rightSibling == -1){
+            rightSiblingID = Optional.empty();
+        }
+
+
+        Type type = metadata.getKeySchema();
+        int n = buf.getInt();
+        List<DataBox> newkeys = new ArrayList<>();
+        List<RecordId> newrids = new ArrayList<>();
+        for(int i =0 ; i < n ; i++){
+            newkeys.add(DataBox.fromBytes(buf, type));
+            newrids.add(RecordId.fromBytes(buf));
+        }
+        return new LeafNode(metadata , bufferManager,page , newkeys ,newrids , rightSiblingID
+            , treeContext);
+/*        private LeafNode(BPlusTreeMetadata metadata, BufferManager bufferManager, Page page,
+                List<DataBox> keys,
+                List<RecordId> rids, Optional<Long> rightSibling, LockContext treeContext) {
+*/
     }
 
     // Builtins ////////////////////////////////////////////////////////////////
