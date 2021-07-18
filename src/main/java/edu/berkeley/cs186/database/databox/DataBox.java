@@ -66,7 +66,6 @@ public abstract class DataBox implements Comparable<DataBox> {
     }
 
     public static DataBox fromBytes(Buffer buf, Type type) {
-        System.out.println(type.getTypeId());
         switch (type.getTypeId()) {
             case BOOL: {
                 byte b = buf.get();

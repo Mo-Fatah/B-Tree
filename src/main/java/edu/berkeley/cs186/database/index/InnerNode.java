@@ -81,8 +81,7 @@ class InnerNode extends BPlusNode {
     @Override
     public LeafNode get(DataBox key) {
         // TODO(proj2): implement
-
-        return null;
+        return getChild(numLessThan(key , keys)).get(key);
     }
 
     // See BPlusNode.getLeftmostLeaf.
@@ -90,8 +89,7 @@ class InnerNode extends BPlusNode {
     public LeafNode getLeftmostLeaf() {
         assert(children.size() > 0);
         // TODO(proj2): implement
-
-        return null;
+        return getChild(0).getLeftmostLeaf();
     }
 
     // See BPlusNode.put.
@@ -99,7 +97,39 @@ class InnerNode extends BPlusNode {
     public Optional<Pair<DataBox, Long>> put(DataBox key, RecordId rid) {
         // TODO(proj2): implement
 
+        int order = metadata.getOrder();
+        Optional<Pair<DataBox, Long>> optSplitPair = getChild(numLessThanEqual(key, keys)).put(key, rid);
+
+        if (optSplitPair.isPresent()) {
+            Pair<DataBox,Long> splitPair = optSplitPair.get();
+            DataBox newKey = splitPair.getFirst();
+            Long newChildNum = splitPair.getSecond();
+            int newKeyIdx = numLessThan(newKey, keys);
+
+            keys.add(newKeyIdx, newKey);
+            children.add(newKeyIdx+1, newChildNum);
+        }
+
+        if (keys.size() > 2*order) {
+            return Optional.of(helper(order));
+        }
+        sync();
         return Optional.empty();
+    }
+    private Pair<DataBox, Long> helper(int order) {
+        DataBox pushKey = keys.get(order);
+        List<DataBox> newNodeKeys = keys.subList(order+1, keys.size());
+        keys = keys.subList(0, order);
+        List<Long> newNodeChildren = children.subList(order+1, children.size());
+        children = children.subList(0, order+1);
+        assert (newNodeKeys.size() == order);
+        assert (keys.size() == order);
+        assert (newNodeChildren.size() == order + 1);
+        assert (children.size() == order+1);
+
+        InnerNode newNode = new InnerNode(metadata, bufferManager, newNodeKeys, newNodeChildren, treeContext);
+        sync();
+        return new Pair(pushKey, newNode.page.getPageNum());
     }
 
     // See BPlusNode.bulkLoad.
@@ -115,8 +145,8 @@ class InnerNode extends BPlusNode {
     @Override
     public void remove(DataBox key) {
         // TODO(proj2): implement
-
-        return;
+        get(key).remove(key);
+        sync();
     }
 
     // Helpers /////////////////////////////////////////////////////////////////

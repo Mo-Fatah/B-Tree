@@ -149,23 +149,40 @@ class LeafNode extends BPlusNode {
     @Override
     public LeafNode get(DataBox key) {
         // TODO(proj2): implement
-
-        return null;
+        return this;
     }
 
     // See BPlusNode.getLeftmostLeaf.
     @Override
     public LeafNode getLeftmostLeaf() {
         // TODO(proj2): implement
-
-        return null;
+        return this;
     }
 
     // See BPlusNode.put.
     @Override
     public Optional<Pair<DataBox, Long>> put(DataBox key, RecordId rid) {
         // TODO(proj2): implement
+        int index = InnerNode.numLessThanEqual(key, keys);
+        if(keys.contains(key)){
+            throw new BPlusTreeException("Duplicate keys");
+        }
+        keys.add(index , key);
+        rids.add(index, rid);
+        if(keys.size() > 2 * metadata.getOrder()){
+            List<DataBox> rightKeys = keys.subList(metadata.getOrder(), keys.size());
+            List<RecordId> rightrIds = rids.subList(metadata.getOrder(), keys.size());
 
+            keys = keys.subList(0,metadata.getOrder());
+            rids = rids.subList(0 , metadata.getOrder());
+
+            LeafNode newRightLeaf = new LeafNode(metadata , bufferManager, rightKeys,
+                    rightrIds, rightSibling, treeContext);
+            rightSibling  = Optional.of(newRightLeaf.page.getPageNum());
+            Pair<DataBox , Long> pair = new Pair<>(rightKeys.get(0), newRightLeaf.page.getPageNum());
+            return Optional.of(pair);
+        }
+        sync();
         return Optional.empty();
     }
 
@@ -182,8 +199,12 @@ class LeafNode extends BPlusNode {
     @Override
     public void remove(DataBox key) {
         // TODO(proj2): implement
-
-        return;
+        int index = keys.indexOf(key);
+        if(index != -1 ) {
+            keys.remove(index);
+            rids.remove(index);
+        }
+        sync();
     }
 
     // Iterators ///////////////////////////////////////////////////////////////
