@@ -118,6 +118,7 @@ class LeafNode extends BPlusNode {
         this(metadata, bufferManager, bufferManager.fetchNewPage(treeContext, metadata.getPartNum()),
              keys, rids,
              rightSibling, treeContext);
+
     }
 
     /**

@@ -199,8 +199,7 @@ public class BPlusTree {
         LockUtil.ensureSufficientLockHeld(lockContext, LockType.NL);
 
         // TODO(proj2): Return a BPlusTreeIterator.
-
-        return Collections.emptyIterator();
+        return new BPlusTreeIterator(root.getLeftmostLeaf());
     }
 
     /**
@@ -232,8 +231,7 @@ public class BPlusTree {
         LockUtil.ensureSufficientLockHeld(lockContext, LockType.NL);
 
         // TODO(proj2): Return a BPlusTreeIterator.
-
-        return Collections.emptyIterator();
+        return new BPlusTreeIterator(root.get(key), key);
     }
 
     /**
@@ -254,8 +252,17 @@ public class BPlusTree {
         // Note: You should NOT update the root variable directly.
         // Use the provided updateRoot() helper method to change
         // the tree's root if the old root splits.
+        Optional<Pair<DataBox, Long>> optUpdatePair = root.put(key, rid);
+        if (optUpdatePair.isPresent()) {
+            Pair<DataBox, Long> updatePair = optUpdatePair.get();
+            DataBox newRootKey = updatePair.getFirst();
+            Long rightRootNum = updatePair.getSecond();
 
-        return;
+            List<DataBox> newRootKeys = Arrays.asList(newRootKey);
+            List<Long> newRootNums = Arrays.asList(root.getPage().getPageNum(), rightRootNum);
+            InnerNode newRoot = new InnerNode(metadata, bufferManager, newRootKeys, newRootNums, lockContext);
+            updateRoot(newRoot);
+        }
     }
 
     /**
@@ -304,8 +311,8 @@ public class BPlusTree {
         LockUtil.ensureSufficientLockHeld(lockContext, LockType.NL);
 
         // TODO(proj2): implement
+        root.remove(key);
 
-        return;
     }
 
     // Helpers /////////////////////////////////////////////////////////////////
@@ -412,19 +419,81 @@ public class BPlusTree {
     // Iterator ////////////////////////////////////////////////////////////////
     private class BPlusTreeIterator implements Iterator<RecordId> {
         // TODO(proj2): Add whatever fields and constructors you want here.
+        LeafNode curr;
+        Iterator<RecordId> iternode;
+
+        // ScanGreaterThanEqual initializer takes in any leaf node key
+        // ==> Will loop through all leaves to the right to find non-empty iterator
+        // ==> otherwise it will just be an empty iterator
+        public BPlusTreeIterator(LeafNode start, DataBox key) {
+            curr = start;
+            iternode = curr.scanGreaterEqual(key);
+        }
+
+        public BPlusTreeIterator(LeafNode start) {
+            curr = start;
+            iternode = curr.scanAll();
+        }
 
         @Override
         public boolean hasNext() {
             // TODO(proj2): implement
-
-            return false;
+            //check current node
+            //iterative method
+            //if current.scanall has a next node, return true, or get Right sibling
+            return iternode.hasNext();
         }
 
         @Override
         public RecordId next() {
             // TODO(proj2): implement
-
-            throw new NoSuchElementException();
+            // call .next from Iterator class
+            // update iternode if empty
+            RecordId rid = iternode.next();
+            if (!hasNext()) {
+                update();
+            }
+            return rid;
         }
+
+        private void update() {
+            Optional<LeafNode> rightSib = curr.getRightSibling();
+            if (rightSib.isPresent()) {
+                curr = rightSib.get();
+                iternode = curr.scanAll();
+            }
+        }
+        /*LeafNode currNode;
+        int index;
+        public BPlusTreeIterator(BPlusNode root){
+            currNode = root.getLeftmostLeaf();
+            index = 0;
+        }
+        @Override
+        public boolean hasNext() {
+            // TODO(proj2): implement
+
+            if(index < currNode.getRids().size()){
+                return true;
+            }
+            else return currNode.getRightSibling().isPresent();
+
+        }
+
+        @Override
+        public RecordId next() {
+            // TODO(proj2): implement
+            RecordId ans;
+            if (index >= currNode.getRids().size()) {
+                index = 0;
+                currNode = currNode.getRightSibling().get();
+            }
+            ans = currNode.getRids().get(index);
+            index++;
+            return ans;
+        }
+        public DataBox currKey(){
+            return currNode.getKeys().get(index);
+        }*/
     }
 }
